@@ -1,5 +1,5 @@
 # Script written to illustrate the use of GPMs in Paleobiology
-# Ádám T. Kocsis, 2026-01-19, Erlangen
+# Ádám T. Kocsis, 2026-04-15, Erlangen
 
 library(rgplates) # tectonic reconstructions, requires GPLATES desktop app
 library(chronosphere) # data acquisition
@@ -18,6 +18,8 @@ setwd("/mnt/sky/Dropbox/WorkSpace/2025-06-10_PPE/")
 # Data preparation
 ################################################################################
 
+dir.create("data/chronosphere", showWarnings=FALSE)
+
 # PALEOMAP model
 PALEOMAP <- fetch("paleomap", "model", datadir="data/chronosphere", ver="v19o_r1c")
 
@@ -31,7 +33,11 @@ pc<- fetch("paleomap", "paleocoastlines", datadir="data/chronosphere", ver="7")
 ssinter<- fetch("SOM-kocsis-provinciality", datadir="data/chronosphere", ver="v1.0")
 
 # PBDB data
-pbdb<- fetch("pbdb", datadir="data/chronosphere", ver="20251118")
+pbdb<- fetch("pbdb", datadir="data/chronosphere", ver="20260412")
+
+
+# the hexagonl grid to be used
+hex <- icosa::hexagrid(deg=8, sf=TRUE)
 
 ################################################################################
 # PBDB Data preparation (crude)
@@ -110,6 +116,7 @@ occsMid <- occs[!is.na(occs$mid_plng), ]
 me <- rgplates::mapedge()
 
 # Visualize
+dir.create("export/gpmuse/", showWarnings=FALSE)
 png("export/gpmuse/basics.png", width=2000, height=1000, pointsize=24, bg=NA)
 	par(mai=rep(0.1, 4))
 	plot(me, col="white")
@@ -174,7 +181,6 @@ focalGen <- "Kettneraspis"
 colCell <- "#DD330066"
 
 # 1. icosa grid occupancy
-hex <- icosa::hexagrid(deg=8, sf=TRUE)
 
 # add the located cell
 occsMid$cell <- icosa::locate(hex, occsMid[, c("mid_plng", "mid_plat")])

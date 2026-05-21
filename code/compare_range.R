@@ -6,7 +6,7 @@ setwd("/mnt/sky/Dropbox/WorkSpace/2025-06-10_PPE/")
 # Get the models!
 # get the TorsvikCocks model (rgplates::platemodel class object)
 source("code/methods/TorsvikCocks2017.R") #outputs TC2017
-PALEOMAP <- fetch("paleomap", "model")
+PALEOMAP <- fetch("paleomap", "model", datadir="data/chronosphere")
 
 # compare australia
 tcCoast<- reconstruct("coastlines", age=400, anchor=1 , model="TorsvikCocks2017")
@@ -103,6 +103,7 @@ emsian  <- cbind(emsian,pmCoords, tcCoords)
 
 allGen <- unique(emsian$genus)
 
+dir.create("export/ranges/pm400_stg29_30_31", showWarnings=FALSE)
 for(i in 1:length(allGen)){
 	gen <- allGen[i]
 	genDat <-emsian[which(emsian$genus==gen), ]
@@ -210,7 +211,7 @@ for(i in 1:length(tasmanGen)){
 ## model <- "pm"
 ## coast <- pmCoast
 
-NicePlot <- function(x, gen="", model, coast, proj="ESRI:54009", gr=hex){
+NicePlot <- function(x, gen="", model, coast, proj="ESRI:54009", gr=hex, highlight.index=NULL, highlight.col="#ffffd6ff", highlight.border="#c0b100ff"){
 	dir.create("export/elements/", showWarnings=FALSE)
 	# get the data
 	genDat <-x[grepl(gen, x$genus), ]
@@ -234,6 +235,9 @@ NicePlot <- function(x, gen="", model, coast, proj="ESRI:54009", gr=hex){
 	plot(mapedge(crs=proj), col="white", reset=FALSE,border="gray30", lwd=3)
 	plot(base, col="gray", border=NA, add=TRUE)
 	plot(hex, border="gray90", col=NA, add=TRUE, crs=proj)
+	if(!is.null(highlight.index))
+		plot(base[highlight.index,], col=highlight.col, border=highlight.border, add=TRUE, lwd=2)
+
 	plot(hex, unique(genDat[, paste0(model, "_cell")]), border="gray90", col="#0088AA77", add=TRUE, crs=proj)
 	plot(occs, col="red", pch=3, lwd=3, add=TRUE)
 	plot(mapedge(crs=proj), col=NA, add=TRUE,border="gray30", lwd=3)
@@ -242,5 +246,21 @@ NicePlot <- function(x, gen="", model, coast, proj="ESRI:54009", gr=hex){
 
 
 }
-NicePlot(x=emsian, gen="Trimerus", model="pm", coast=pmCoast)
-NicePlot(x=emsian, gen="Trimerus", model="tc", coast=tcCoast)
+
+# Find Australia
+# Paleomap
+pmAustrliaPoints <- st_as_sf(as.data.frame(cbind(long=160, lat=-14.5)), coords=c("long", "lat"), crs="WGS84")
+pmCoast2 <- pmCoast
+pmCoast2$index <- 1:nrow(pmCoast2)
+pmJoin <- sf::st_join(pmAustrliaPoints, st_make_valid(pmCoast2), join=st_intersects)
+# TorsvikCocks
+tcAustrliaPoints <- st_as_sf(as.data.frame(cbind(long=132, lat=-18.5)), coords=c("long", "lat"), crs="WGS84")
+tcCoast2 <- tcCoast
+tcCoast2$index <- 1:nrow(tcCoast2)
+sf_use_s2(FALSE)
+tcJoin <- sf::st_join(tcAustrliaPoints, st_make_valid(tcCoast2), join=st_intersects)
+sf_use_s2(TRUE)
+
+
+NicePlot(x=emsian, gen="Trimerus", model="pm", coast=pmCoast, highlight.index=pmJoin$index, highlight.border="#c0b100ff")
+NicePlot(x=emsian, gen="Trimerus", model="tc", coast=tcCoast, highlight.index=tcJoin$index, highlight.border="#c0b100ff")
