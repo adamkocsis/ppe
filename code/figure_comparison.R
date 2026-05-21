@@ -78,35 +78,35 @@ dir.create("export/compare/", showWarnings=FALSE)
 
 # 0. Two trond models
 png("export/compare/TC.png", width=3000, height=1500, pointsize=24, bg="transparent")
-par(mai=rep(0.1,4))
+par(mai=rep(0.1,4), family="mono")
 plot(meProj)
 sphereshade(crs=proj, right="#ffffff", left="#eeeeee")
 plot(platesTC2017mantleProj$geometry, col=paste0(colTCmantle, alpha), add=TRUE, border=NA)
 plot(platesTC2017magProj$geometry, col=paste0(colTCmag, alpha), add=TRUE, border=NA)
-legend("topright", fill=paste0(c(colTCmag, colTCmantle),alpha), legend=c("TorsvikCocks2017 (PMRF)", "TorsvikCocks2017 (MRF)"), bty="n", cex=2, inset=c(0.18,0.1))
+legend("topright", fill=paste0(c(colTCmag, colTCmantle),alpha), legend=c("TorsvikCocks2017 (PMRF)", "TorsvikCocks2017 (MRF)"), bty="n", cex=2, inset=c(0.22,0.05))
 plot(meProj, add=TRUE, lwd=7)
 dev.off()
 
 
 # 1. only palemagnetic reference
 png("export/compare/mag.png", width=3000, height=1500, pointsize=24, bg="transparent")
-par(mai=rep(0.1,4))
+par(mai=rep(0.1,4), family="mono")
 plot(meProj)
 sphereshade(crs=proj, right="#ffffff", left="#eeeeee")
 plot(platesTC2017magProj$geometry, col=paste0(colTCmag,alpha), add=TRUE, border=NA)
 plot(platesMERDITH2021Proj$geometry, col=paste0(colMerdith2021,alpha), add=TRUE, border=NA)
 plot(meProj, add=TRUE, border="darkred", lwd=10)
-legend("topright", fill=paste0(c(colTCmag, colMerdith2021),alpha), legend=c("TorsvikCocks2017 (PMRF)", "MERDITH2021"), bty="n", cex=2, inset=c(0.18,0.1))
+legend("topright", fill=paste0(c(colTCmag, colMerdith2021),alpha), legend=c("TorsvikCocks2017 (PMRF)", "MERDITH2021"), bty="n", cex=2, inset=c(0.22,0.05))
 dev.off()
 
 
 # only mantle reference
 png("export/compare/mantle.png", width=3000, height=1500, pointsize=24, bg="transparent")
-par(mai=rep(0.1,4))
+par(mai=rep(0.1,4), family="mono")
 plot(meProj)
 sphereshade(crs=proj, right="#ffffff", left="#eeeeee")
 plot(platesTC2017mantleProj$geometry, col=paste0(colTCmantle,alpha), add=TRUE, border=NA)
 plot(platesMULLER2022Proj$geometry, col=paste0(colMuller2022,alpha), add=TRUE, border=NA)
-legend("topright", fill=paste0(c(colTCmantle, colMuller2022),alpha), legend=c("TorsvikCocks2017 (MRF)", "MULLER2022"), bty="n", cex=2, inset=c(0.18,0.1))
+legend("topright", fill=paste0(c(colTCmantle, colMuller2022),alpha), legend=c("TorsvikCocks2017 (MRF)", "MULLER2022"), bty="n", cex=2, inset=c(0.22,0.05))
 plot(meProj, add=TRUE, lwd=7)
 dev.off()
