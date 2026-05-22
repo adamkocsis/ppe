@@ -211,6 +211,7 @@ for(i in 1:length(tasmanGen)){
 ## model <- "pm"
 ## coast <- pmCoast
 
+
 NicePlot <- function(x, gen="", model, coast, proj="ESRI:54009", gr=hex, highlight.index=NULL, highlight.col="#ffffd6ff", highlight.border="#c0b100ff"){
 	dir.create("export/elements/", showWarnings=FALSE)
 	# get the data
@@ -261,6 +262,9 @@ sf_use_s2(FALSE)
 tcJoin <- sf::st_join(tcAustrliaPoints, st_make_valid(tcCoast2), join=st_intersects)
 sf_use_s2(TRUE)
 
+# the projections
+proj <- "ESRI:54009"
+proj <- "ESRI:54030"
 
-NicePlot(x=emsian, gen="Trimerus", model="pm", coast=pmCoast, highlight.index=pmJoin$index, highlight.border="#c0b100ff")
-NicePlot(x=emsian, gen="Trimerus", model="tc", coast=tcCoast, highlight.index=tcJoin$index, highlight.border="#c0b100ff")
+NicePlot(x=emsian, proj=proj, gen="Trimerus", model="pm", coast=pmCoast, highlight.index=pmJoin$index, highlight.border="#c0b100ff")
+NicePlot(x=emsian, proj=proj, gen="Trimerus", model="tc", coast=tcCoast, highlight.index=tcJoin$index, highlight.border="#c0b100ff")
