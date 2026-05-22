@@ -263,8 +263,8 @@ tcJoin <- sf::st_join(tcAustrliaPoints, st_make_valid(tcCoast2), join=st_interse
 sf_use_s2(TRUE)
 
 # the projections
-proj <- "ESRI:54009"
 proj <- "ESRI:54030"
+proj <- "ESRI:54009"
 
 NicePlot(x=emsian, proj=proj, gen="Trimerus", model="pm", coast=pmCoast, highlight.index=pmJoin$index, highlight.border="#c0b100ff")
 NicePlot(x=emsian, proj=proj, gen="Trimerus", model="tc", coast=tcCoast, highlight.index=tcJoin$index, highlight.border="#c0b100ff")
