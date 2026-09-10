@@ -4,9 +4,10 @@
 library(rgplates) # tectonic reconstructions, requires GPLATES desktop app
 library(chronosphere) # data acquisition
 library(divDyn) # geologic timescale and data binning
+library(terra) # rasters
 library(icosa) # icosahedral gridding
 library(rampage) # color ramp
-library(vegan) # distance metric
+library(vegan) # dissimiliarity metric
 library(viridisLite) # color ramp
 library(predicts) # MaxEnt wrapper
 library(smoothr) # resampling shapes
