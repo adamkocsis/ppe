@@ -2,11 +2,33 @@
 
 Code and data for the reproduction of figures.
 
-- The code is still relatively messy - this repository will be organized and cleaned in the next week or two.
-- Used data will be included in the deposition. They are currently accessible with the `chronsophere` library.
+## Dependencies
+
+All examples were plotted using R version 4.6.1 running on Ubuntu 26.04 LTS.
+
+
+
+| Package      | version |
+|--------------|---------|
+| divDyn       | 0.8.3   |
+| rgplates     | 0.6.1   |
+| icosa        | 0.12.0  |
+| chronosphere | 0.6     |
+| rampage      | 0.2.1   |
+| vegan        | 2.7-5   |
+| predicts     | 0.2-2   |
+| terra        | 1.9-27  |
+| smoothr      | 1.3.0   |
+| sf           | 1.1-1   |
+| rJava        | 1.0-18  |
+| viridisLite  | 1.0-18  |
+
+
 
 
 ## Figure 1
+
+The figure was plotted using GPLates 2.5.0 as a back-end for 'rgplates'.
 
 - code: `code/gpmuse.R`
 - mock-up: `doc/figs/fig_gpmuse.svg`
@@ -14,7 +36,6 @@ Code and data for the reproduction of figures.
 
 ## Figure 2
 
-The current version is a manually created mock-up from existing plots and vector graphic edits. We intend to replace some maps with computer generated, data-driven plots.
 
 ## Figure 3
 

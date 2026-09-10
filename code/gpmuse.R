@@ -21,22 +21,22 @@ setwd("/mnt/sky/Dropbox/WorkSpace/2025-06-10_PPE/")
 dir.create("data/chronosphere", showWarnings=FALSE)
 
 # PALEOMAP model
-PALEOMAP <- fetch("paleomap", "model", datadir="data/chronosphere", ver="v19o_r1c")
+PALEOMAP <- chronosphere::fetch("paleomap", "model", datadir="data/chronosphere", ver="v19o_r1c")
 
 # PALEOMAP DEM
-dems <- fetch("paleomap", "dem", res=0.1, datadir="data/chronosphere", ver="v24221")
+dems <- chronosphere::fetch("paleomap", "dem", res=0.1, datadir="data/chronosphere", ver="v24221")
 
 # PALEOMAP Paleocoastlines
-pc<- fetch("paleomap", "paleocoastlines", datadir="data/chronosphere", ver="7")
+pc<- chronosphere::fetch("paleomap", "paleocoastlines", datadir="data/chronosphere", ver="7")
 
 # BRIDGE SST reconstruction HadCM3- interpolated to work with Paleocoastlines
-ssinter<- fetch("SOM-kocsis-provinciality", datadir="data/chronosphere", ver="v1.0")
+ssinter<- chronosphere::fetch("SOM-kocsis-provinciality", datadir="data/chronosphere", ver="v1.0")
 
 # PBDB data
-pbdb<- fetch("pbdb", datadir="data/chronosphere", ver="20260412")
+pbdb<- chronosphere::fetch("pbdb", datadir="data/chronosphere", ver="20260412")
 
 
-# the hexagonl grid to be used
+# the hexagonal grid to be used
 hex <- icosa::hexagrid(deg=8, sf=TRUE)
 
 ################################################################################
@@ -88,8 +88,8 @@ colnames(prodCoords) <- c("prod_plng", "prod_plat")
 occs <- cbind(occs,midCoords, prodCoords)
 
 # Get the reconsturctions (mid age and product)
-midPlates<- reconstruct("static_polygons",  age=mid, model=PALEOMAP)
-prodPlates<- reconstruct("static_polygons",  age=prod, model=PALEOMAP)
+midPlates <- rgplates::reconstruct("static_polygons",  age=mid, model=PALEOMAP)
+prodPlates <- rgplates::reconstruct("static_polygons",  age=prod, model=PALEOMAP)
 
 ################################################################################
 # a. Visualization of coordinates (plates + coastlines)
@@ -132,14 +132,14 @@ dev.off()
 
 # the Projected versions
 	# reprojected edge of the map
-	meProj <- mapedge(crs=proj)
+	meProj <- rgplates::mapedge(crs=proj)
 	# reprojected static polygons
-	midPlatesProj <- st_transform(smoothr::densify(midPlates), crs=proj)
+	midPlatesProj <- sf::st_transform(smoothr::densify(midPlates), crs=proj)
 
 	# occurrence reprojected coordinates: add to occsMid
-	occsMidProj <- st_as_sf(occsMid[, c("collection_no", "mid_plng", "mid_plat")], coords=c("mid_plng", "mid_plat"), crs="WGS84")
-	occsMidProj <- st_transform(occsMidProj, crs=proj)
-	midProjCoords <- st_coordinates(occsMidProj)
+	occsMidProj <- sf::st_as_sf(occsMid[, c("collection_no", "mid_plng", "mid_plat")], coords=c("mid_plng", "mid_plat"), crs="WGS84")
+	occsMidProj <- sf::st_transform(occsMidProj, crs=proj)
+	midProjCoords <- sf::st_coordinates(occsMidProj)
 	colnames(midProjCoords) <- c("mid_plng_proj", "mid_plat_proj")
 	occsMid<- cbind(occsMid, midProjCoords)
 
@@ -151,8 +151,8 @@ dev.off()
 		oneLat<- cbind(long=ps, lat=rep(gratLats[i], length(ps)))
 		grat<- rbind(grat, oneLat)
 	}
-	gratProj <- st_as_sf(grat, coords=c("long", "lat"), crs="WGS84")
-	gratProj <- st_transform(gratProj, crs=proj)
+	gratProj <- sf::st_as_sf(grat, coords=c("long", "lat"), crs="WGS84")
+	gratProj <- sf::st_transform(gratProj, crs=proj)
 
 	# Visualize
 	png("export/gpmuse/basicProj.png", width=2000, height=1000, pointsize=24, bg=NA)
@@ -160,9 +160,9 @@ dev.off()
 		plot(meProj, col="white")
 		plot(midPlatesProj$geometry, col="#BBBBBBBB", border=NA, add=TRUE)
 		plot(hex, col=NA, border="gray60", add=TRUE, crs=proj)
-		for(i in seq(-90, 90, 15)) lines(st_coordinates(gratProj)[grat[,2]==i,],  lty=2, lwd=2, col="gray75")
-		for(i in c(-45,45)) lines(st_coordinates(gratProj)[grat[,2]==i,], lty=2, lwd=2, col="gray30")
-		lines(st_coordinates(gratProj)[grat[,2]==0,], lwd=4, col="gray30")
+		for(i in seq(-90, 90, 15)) lines(sf::st_coordinates(gratProj)[grat[,2]==i,],  lty=2, lwd=2, col="gray75")
+		for(i in c(-45,45)) lines(sf::st_coordinates(gratProj)[grat[,2]==i,], lty=2, lwd=2, col="gray30")
+		lines(sf::st_coordinates(gratProj)[grat[,2]==0,], lwd=4, col="gray30")
 		points(unique(occsMid[, c("mid_plng_proj", "mid_plat_proj")]), col=colAll,bg=bgAll, pch=21, cex=1.5)
 		plot(meProj, border="black", lwd=4, add=TRUE, col=NA)
 	dev.off()
@@ -340,7 +340,7 @@ occsProd <- occsProd[which(occsProd$stg==31), ]
 focalProd <- occsProd[which(occsProd$genus==focalGen), ]
 
 png("export/gpmuse/sst.png", width=2000, height=1000, pointsize=24, bg=NA)
-	plot(sst, col=gradinv(256), box=TRUE, axes=FALSE)
+	plot(sst, col=rampage::gradinv(256), box=TRUE, axes=FALSE)
 	plot(margin, col="#BBBBBB88", add=TRUE, border=NA)
 	plot(coast, col="gray90", add=TRUE, border="gray90", lwd=3)
 	points(unique(occsProd[, c("prod_plng", "prod_plat")]),  bg=bgAll,col=colAll, pch=21, cex=1.5, lwd=2)
@@ -358,7 +358,7 @@ coastProj <- sf::st_transform(smoothr::densify(coast), crs=proj)
 marginProj <- sf::st_transform(smoothr::densify(margin), crs=proj)
 
 png("export/gpmuse/sstProj.png", width=2000, height=1000, pointsize=24, bg=NA)
-	plot(sstProj, col=gradinv(256), box=FALSE, axes=FALSE, ylim=c(st_bbox(meProj)[c('ymin', 'ymax')]))
+	plot(sstProj, col=rampage::gradinv(256), box=FALSE, axes=FALSE, ylim=c(sf::st_bbox(meProj)[c('ymin', 'ymax')]))
 	plot(marginProj, col="#BBBBBB88", add=TRUE, border=NA)
 	plot(coastProj, col="gray90", add=TRUE, border="gray90", lwd=3)
 	points(unique(occsProd[, c("prod_plng_proj", "prod_plat_proj")]),  bg=bgAll,col=colAll, pch=21, cex=1.5, lwd=2)
@@ -456,7 +456,7 @@ dev.off()
 # plot reprojected
 png("export/gpmuse/demProj.png", width=2000, height=1000, pointsize=24, bg=NA)
 	par(mai=rep(0.1, 4))
-	plot(project(emsianDEM, proj), col=paleomap$col, breaks=paleomap$breaks, legend=FALSE, axes=FALSE)
+	plot(terra::project(emsianDEM, proj), col=paleomap$col, breaks=paleomap$breaks, legend=FALSE, axes=FALSE)
 	plot(meProj, col=NA, border="black", lwd=4,add=TRUE)
 dev.off()
 
@@ -470,7 +470,7 @@ allClim <- list.files("data/400_teXPc")
 allClim <- allClim[grep("pfc", allClim)]
 
 # stack of rasters
-allMonths <- terra::rast(paste0("data/400_teXPc/", allClim) )
+allMonths <- suppressWarnings(terra::rast(paste0("data/400_teXPc/", allClim) ))
 
 # get only the temperature variable
 allTemp <- allMonths[[which(varnames(allMonths)=="temp_mm_uo")]]
@@ -521,7 +521,7 @@ one <- masked>tr
 terra::values(one)[!terra::values(one)] <- NA
 
 # create threshold-basd color ramp
-colDat <- data.frame(color=rev(viridisLite::viridis(3)),z=c(max(values(masked), na.rm=TRUE), tr,0 ))
+colDat <- data.frame(color=rev(viridisLite::viridis(3)),z=c(max(terra::values(masked), na.rm=TRUE), tr,0 ))
 suitCols <- rampage::expand(colDat, n=256)
 
 # plot longlat
@@ -536,11 +536,12 @@ dev.off()
 
 # plot reprojected
 png("export/gpmuse/maxent_suitabilityProj.png", width=2000, height=1000, pointsize=24, bg=NA)
-	plot(project(masked, proj), axes=FALSE, xlim=st_bbox(meProj)[c("xmin", "xmax")], ylim=st_bbox(meProj)[c("ymin", "ymax")], col=suitCols$col, breaks=suitCols$breaks, type="continuous")
+	plot(terra::project(masked, proj), axes=FALSE, xlim=sf::st_bbox(meProj)[c("xmin", "xmax")],
+		ylim=sf::st_bbox(meProj)[c("ymin", "ymax")], col=suitCols$col, breaks=suitCols$breaks, type="continuous")
 	plot(meProj, col="white", add=TRUE)
 	plot(marginProj, add=TRUE, col="gray", border=NA)
 	plot(coastProj, col="black", add=TRUE)
-	plot(project(masked, proj), axes=FALSE, add=TRUE, legend=FALSE, col=suitCols$col, breaks=suitCols$breaks)
+	plot(terra::project(masked, proj), axes=FALSE, add=TRUE, legend=FALSE, col=suitCols$col, breaks=suitCols$breaks)
 	plot(meProj, lwd=4, col=NA, border="black", add=TRUE)
 	points(unique(focalProd[, c("prod_plng_proj", "prod_plat_proj")]), bg=bgFocal, col=colFocal, pch=23, cex=2, lwd=3)
 dev.off()
