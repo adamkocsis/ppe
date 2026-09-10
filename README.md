@@ -54,8 +54,8 @@ Components of the figure was plotted using GWS 1.0.0 as a back-end for 'rgplates
 
 ## Box-Figure 1
 
-- code: `code/compare_range.R`
-- mock-up: `doc/figs/fig_ranges.svg`
-- raster: `doc/figs/fig_ranges.png`
+- code: `code/mismatch.R`
+- mock-up: `doc/figs/fig_mismatch.svg`
+- raster: `doc/figs/fig_mismatch.png`
 
 
