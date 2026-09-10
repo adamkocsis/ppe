@@ -30,7 +30,7 @@ All examples were plotted using R version 4.6.1 running on Ubuntu 26.04 LTS.
 
 ## Figure 1
 
-Components of the figure was plotted using GPLates 2.5.0 as a back-end for 'rgplates'.
+Components of the figure was plotted using GPLates 2.5.0 as a back-end for `rgplates`.
 
 - code: `code/gpmuse.R`
 - mock-up: `doc/figs/fig_gpmuse.svg`
@@ -38,7 +38,7 @@ Components of the figure was plotted using GPLates 2.5.0 as a back-end for 'rgpl
 
 ## Figure 2
 
-Components of the figure was plotted using GPLates 2.5.0 and GWS 1.0.0 as a back-end for 'rgplates'.
+Components of the figure was plotted using GPLates 2.5.0 and GWS 1.0.0 as a back-end for `rgplates`.
 
 - code: `code/dependency.R`
 - mock-up: `doc/figs/fig_dependency.svg`
@@ -46,7 +46,7 @@ Components of the figure was plotted using GPLates 2.5.0 and GWS 1.0.0 as a back
 
 ## Figure 3
 
-Components of the figure was plotted using GWS 1.0.0 as a back-end for 'rgplates'.
+Components of the figure was plotted using GWS 1.0.0 as a back-end for `rgplates`.
 
 - code: `code/comparison.R`
 - mock-up: `doc/figs/fig_comparison.svg`
@@ -54,7 +54,7 @@ Components of the figure was plotted using GWS 1.0.0 as a back-end for 'rgplates
 
 ## Box-Figure 1
 
-Components of the figure was plotted using GWS 1.0.0 as a back-end for 'rgplates'.
+Components of the figure was plotted using GWS 1.0.0 as a back-end for `rgplates`.
 
 - code: `code/mismatch.R`
 - mock-up: `doc/figs/fig_mismatch.svg`
