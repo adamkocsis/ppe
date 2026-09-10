@@ -22,9 +22,11 @@ All examples were plotted using R version 4.6.1 running on Ubuntu 26.04 LTS.
 | sf           | 1.1-1   |
 | rJava        | 1.0-18  |
 | viridisLite  | 1.0-18  |
-
-
-
+| via          | 0.2.0   |
+| ncdf4        | 1.24    |
+| ggplot2      | 4.0.3   |
+| tidyterra    | 1.2.0   |
+| metR         | 0.18.3  |
 
 ## Figure 1
 
@@ -36,6 +38,9 @@ The figure was plotted using GPLates 2.5.0 as a back-end for 'rgplates'.
 
 ## Figure 2
 
+- code: `code/dependency.R`
+- mock-up: `doc/figs/fig_dependency.svg`
+- raster: `doc/figs/fig_dependency.png`
 
 ## Figure 3
 

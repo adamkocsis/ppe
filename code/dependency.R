@@ -1,36 +1,75 @@
 # Script written to illustrate the dependency of paleogeographic products
 # Ádám T. Kocsis, 2026-06-17, Erlangen
  
-library(rgplates)
+library(rgplates) # relies on both the local GPlates app, as well as the GWS (accessed locally)
 library(chronosphere)
 library(rampage)
 library(smoothr) # resampling shapes
+library(terra) # rasters
+library(rampage) # color ramps
+library(viridisLite) # directly manipulate netcdf
+library(divDyn) # geologic timescale and data binning
+library(icosa) # icosahedral gridding
+library(vegan) # dissimilarity metric
 
+# for the streamlines only
+library(ncdf4) # directly manipulate netcdf
+library(ggplot2) # grid driver
+library(metR) # streamlines
+library(tidyterra) # background
+library(png) # reading it back
 
+# set working directory
 setwd("/mnt/sky/Dropbox/WorkSpace/2025-06-10_PPE/")
 
+# source some plotting candies
+source("code/methods/plots.R")
 
-# The cambrian
+# The Cambrian mid age
 age <- 500
+
+# This code relies on GWS 1.0.0.
+# If you want to run this locally, you can run the following shell command:
+# docker run -d --rm -p 18000:80 gplates/gws:v1.0.0
+
+# And then in R run
+rgplates::setgws("http://localhost:18000/")
+
+# after this you can turn 
 model <- "PALEOMAP"
+
+# generally used map projection (Mollweide)
 proj <- "ESRI:54009"
 meProj <- rgplates::mapedge(crs=proj)
 
+# create export directories
 dir.create("export", showWarnings=FALSE)
 dir.create("export/dependency", showWarnings=FALSE)
 
-
 ################################################################################
 # A. Global plate model
-mod <- fetch("paleomap", "model", ver="v3-GPlates")
-poly <- reconstruct("static_polygons", age=age, model=mod)
+
+# ensure directory is there
+dir.create("data/chronosphere", showWarnings=FALSE)
+
+# To be used with the GPlates app. This version is the same as in the GWS.
+mod <- chronosphere::fetch("paleomap", "model", datadir="data/chronosphere",  ver="v3-GPlates" )
+
+# static polygons (not in GWS)
+poly <- rgplates::reconstruct("static_polygons", age=age, model=mod)
+
+# densify to make it look nicer in projections
 polyer <- smoothr::densify(poly, n=10)
-coast <- reconstruct("coastlines", age=age, model=model)
-coastProj <- st_transform(coast, crs=proj)
-polyProj <- st_transform(polyer, crs=proj)
+
+# get the modern coastlines (from GWS)
+coast <- rgplates::reconstruct("coastlines", age=age, model=model)
+
+# project both to target
+coastProj <- sf::st_transform(coast, crs=proj)
+polyProj <- sf::st_transform(polyer, crs=proj)
 
 
-
+# Two different versions plotted
 png("export/dependency/gpm.png", width=3000, height=1500, pointsize=24, bg=NA)
 	par(mai=rep(0.1,4))
 	plot(meProj, col="#1A6BB0", border="gray90")
@@ -40,26 +79,22 @@ png("export/dependency/gpm.png", width=3000, height=1500, pointsize=24, bg=NA)
 	plot(meProj, col=NA, lwd=2, border="gray90", add=TRUE)
 dev.off()
 
-png("export/dependency/alter/gpm2.png", width=3000, height=1500, pointsize=24, bg=NA)
-	par(mai=rep(0.1,4))
-	plot(meProj, col="#1A6BB0", border="gray90")
-	plot(coastProj, border="black", col="gray90", add=TRUE)
-	sphereshade(left="#000000", right="#000000", crs=proj, left.alpha=0.25, right.alpha=0)
-	plot(meProj, col=NA, lwd=2, border="gray90", add=TRUE)
-dev.off()
 ################################################################################
-# B. DEM
+# B. Paleomap DEM
+
 # for coloring the rasters
-dems <- fetch("paleomap", "dem", res=0.1, data="data/chronosphere")
+dems <- chronosphere::fetch("paleomap", "dem", res=0.1, data="data/chronosphere")
 dem <- dems[as.character(age)]
 
 # for better visualization - upscale to ensure good geometry
-demRe<- resample(dem, rast(res=0.05))
+demRe<- terra::resample(dem, terra::rast(res=0.05))
+
 # and then project
-demProj <- project(demRe, proj, mask=TRUE, use_gdal=FALSE)
+demProj <- terra::project(demRe, proj, mask=TRUE, use_gdal=FALSE)
 
 # a smoother topographic map
-topocol <- expand(topos$ptolemy, n=512)
+data(topos, package="rampage")
+topocol <- rampage::expand(topos$ptolemy, n=512)
 
 png("export/dependency/dem.png", width=3000, height=1500, pointsize=24, bg=NA)
 	par(mai=rep(0.1,4))
@@ -71,22 +106,28 @@ dev.off()
 
 
 ################################################################################
-# C. Weathering and degassing latitude bands
+# C. Weathering and degassing latitude bands - with fabricated data
+
+# define laitudes
 at <- c(30,-30)
+
+# standard deviaion (zone width)
 dev <- 8 
 
-weather <- rast(res=0.1)
-cells <- xyFromCell(weather, 1:ncell(weather))
+# define 
+weather <- terra::rast(res=0.1)
+cells <- terra::xyFromCell(weather, 1:terra::ncell(weather))
 oneDensity <- dnorm(x=cells[,2], mean=at[1], sd=dev)
 twoDensity <- dnorm(x=cells[,2], mean=at[2], sd=dev)
 densities <- oneDensity + twoDensity 
 
 # the vlaues
-values(weather) <- densities
+terra::values(weather) <- densities
 
-weatherProj <- project(weather, proj)
+# project to target 
+weatherProj <- terra::project(weather, proj)
 
-
+# make a color ramp
 base <- c("#ffffff", "#008e00")
 pal <- colorRampPalette(base)
 cols <- pal(256)
@@ -103,17 +144,26 @@ dev.off()
 
 ################################################################################
 # D. Climate - mean annual temperature
-gmst<- chronosphere::fetch("paleomap", "gmst", datadir="data/chronosphere")
 
+# The GMST of C Scotese
+gmst<- chronosphere::fetch("paleomap", "gmst", ver="scotese02a_v21321", datadir="data/chronosphere")
 
+# Get the values on land
 landProj <- demProj
-values(landProj) <-NA
-values(landProj)[values(demProj)>0] <- 1
+terra::values(landProj) <-NA
+terra::values(landProj)[terra::values(demProj)>0] <- 1
 
-one <- gmst["500"]
-crs(one) <- "WGS84"
-oneRe <- resample(one, rast(res=0.5))
-gmstProj<- project(oneRe, proj)
+# the Camrian one
+one <- gmst[as.character(age)]
+
+# enforce missing CRS
+terra::crs(one) <- "WGS84"
+
+# resample and project
+oneRe <- terra::resample(one, terra::rast(res=0.5))
+gmstProj<- terra::project(oneRe, proj)
+
+# render 
 png("export/dependency/climate.png", width=3000, height=1500, pointsize=24, bg=NA)
 	plot(gmstProj, col=gradinv(256), axes=FALSE, legend=FALSE)
 #	plot(coastProj, border="black", col="#99999988", add=TRUE)
@@ -129,40 +179,42 @@ dev.off()
 # FROM 
 # https://www.paleo.bristol.ac.uk/ummodel/scripts/papers/Valdes_et_al_2021.html
 # https://www.paleo.bristol.ac.uk/ummodel/users/Valdes_et_al_2021/new2/
-library(ncdf4)
-nc <- nc_open("data/500_texPwo/teXPwo.pfclann.nc")
+
+# open to identify layers for velocities 
+nc <- ncdf4::nc_open("data/500_texPwo/teXPwo.pfclann.nc")
 names(nc$var)
 
-u <- rotate(rast("data/500_texPwo/teXPwo.pfclann.nc", subds="ucurrTot_mm_dpth"))
-v <- rotate(rast("data/500_texPwo/teXPwo.pfclann.nc", subds="vcurrTot_mm_dpth"))
+# load layers and rotate
+u <- terra::rotate(terra::rast("data/500_texPwo/teXPwo.pfclann.nc", subds="ucurrTot_mm_dpth"))
+v <- terra::rotate(terra::rast("data/500_texPwo/teXPwo.pfclann.nc", subds="vcurrTot_mm_dpth"))
 
 # the strength of the currents
 magnitude <- sqrt(u^2 + v^2)
 
+# resample magnitude
+reMag <- resample(magnitude, terra::rast(res=1))
 
-reMag <- resample(magnitude, rast(res=1))
-plot(reMag)
+# and project
+magnitudeProj <- terra::project(reMag, proj)
 
-magnitudeProj <- project(reMag, proj)
-plot(magnitudeProj)
-plot(meProj, add=TRUE)
+# preliminary plotting
+## plot(magnitudeProj)
+## plot(meProj, add=TRUE)
+
+# project and resmaple velocities separately
+uProj <- terra::resample(u,terra::rast(res=1))
+vProj <- terra::resample(v,terra::rast(res=1))
 
 
-# project and resmaple
-uProj <- resample(u,rast(res=1))
-vProj <- resample(v,rast(res=1))
-
-
-xy <- xyFromCell(uProj, 1:ncell(uProj))
+# change to a data.frame so it can work with the monster below
+xy <- terra::xyFromCell(uProj, 1:terra::ncell(uProj))
 df <- cbind(xy, u=values(uProj), v=values(vProj))
 colnames(df) <- c("lon", "lat", "u", "v")
 
-# The GG stands for Garbage, Garbage...
-# Ekkora kókányolást még életemben nem csináltam plottal...
-
+# Ekkora kókányolást még életemben nem csináltam plottal... mekkora egy gagyi sz*r ez?
 # Step 1. Draw long-lat raster with streamlines, export to png
+dir.create("export/dependency/alter", showWarnings=FALSE)
 png("export/dependency/alter/current_base.png", width=5000, height=2500, pointsize=60, bg=NA)
-
 par(mar=rep(0,4))
 (g <- ggplot(df, aes(lon, lat)) + #theme_bw()+
 	theme(panel.background = element_rect(fill='transparent'), panel.border = element_blank(), panel.grid.major = element_blank(),plot.background = element_rect(fill = "gray"),
@@ -175,91 +227,86 @@ dev.off()
 
 
 # Step 2. Read in the long-lat png as RGB channels
-library(png)
-block <- readPNG("export/dependency/alter/current_base.png")
-rgb <- c(rast(block[,,1]), rast(block[,,2]), rast(block[,,3]))
+block <- png::readPNG("export/dependency/alter/current_base.png")
+rgb <- c(terra::rast(block[,,1]), terra::rast(block[,,2]), terra::rast(block[,,3]))
 # check!
-plotRGB(rgb[[1:3]]*255)
+terra::plotRGB(rgb[[1:3]]*255)
 
-# Step 3. Crop the margins off the plot...
-
+# Step 3. Crop the margins off the plot... wow
 # the valid plo without the crap margins
-theplot <- ext(c(xmin=238, xmax=4762, ymin=151, ymax=2349))
-cro <- crop(rgb, theplot)
-ext(cro) <- ext(rast())
+theplot <- terra::ext(c(xmin=238, xmax=4762, ymin=151, ymax=2349))
+cro <- terra::crop(rgb, theplot)
+ext(cro) <- terra::ext(terra::rast())
 crs(cro) <- "WGS84"
 
-croProj <- project(cro, proj)
+croProj <- terra::project(cro, proj)
 
 # Step 4: profit!
-png("export/dependency/alter/current.png", width=3000, height=1500, pointsize=24, bg=NA)
-	plotRGB(croProj*255)
+png("export/dependency/current_gplates.png", width=3000, height=1500, pointsize=24, bg=NA)
+	terra::plotRGB(croProj*255)
 #	plot(landProj, axes=FALSE,legend=FALSE, col="gray", add=TRUE)
 	sphereshade(left="#000000", right="#000000", crs=proj, left.alpha=0.15, right.alpha=0)
-	plot(mapedge(crs=proj), add=TRUE, lwd=3)
+	plot(rgplates::mapedge(crs=proj), add=TRUE, lwd=3)
 dev.off()
 
 
 # ...or:
 # Simplest solution: crop with imagemagick, project with gplates...
 # convert -crop 4524x2198+238+151 current_base.png current_longlat.png
-# the projection this way is somewhat nicer
+# the projection this way is somewhat nicer... this was used in the paper.
 
 
 ################################################################################
 # F. Sea level
-
 # create a color palette
-seacols <- mako(10)[4:10]
+seacols <- viridisLite::mako(10)[4:10]
 seapal <- colorRampPalette(seacols)(30)
 coldf <-data.frame(
 	color=c(seapal[c(1,1)], seapal, "#ffffffff", "#ffffffff"),
 	z=c(-10000, -250, seq(-200, +200, length.out=length(seapal)), 250, 10000)
 )
-seaColors <- expand(coldf, n=1000)
+seaColors <- rampage::expand(coldf, n=1000)
 
 
 
+# copy over the dem raster
 sl <- dem
-## values(sl)[values(dem) > 200] <- NA
-## values(sl)[values(dem) < -200] <- NA
-plot(sl, col=mako(6))
 
-sl <- resample(sl, rast(res=0.1))
+# make it nicer
+sl <- terra::resample(sl, terra::rast(res=0.1))
 slproj <- project(sl, proj)
 png("export/dependency/sealevel.png", width=3000, height=1500, pointsize=24, bg=NA)
 	plot(slproj,  col=seaColors$col,breaks=seaColors$breaks, axes=FALSE, legend=FALSE)
 	sphereshade(left="#000000", right="#000000", crs=proj, left.alpha=0.1, right.alpha=0)
-	plot(mapedge(crs=proj), add=TRUE, lwd=3)
+	plot(rgplates::mapedge(crs=proj), add=TRUE, lwd=3)
 dev.off()
 
 
 
-writeRaster(slproj, file="export/dem500moll.tif")
+## writeRaster(slproj, file="export/dem500moll.tif")
 
 ################################################################################
-pbdb <- fetch("pbdb", ser="occs4", ver="20260412", datadir="data/chronosphere")
+# get the PBDB to illustrate Paleoecology,  etc.
+pbdb <- chronosphere::fetch("pbdb", ser="occs4", ver="20260412", datadir="data/chronosphere")
 # approximate!
 
-library(divDyn)
-
-# Based on the mas this is the Miaolingian approximately
+# Based on the this is the Miaolingian approximately (corresponding to 500Ma)
 miao <- pbdb[pbdb$max_ma>=497 & pbdb$min_ma>497 & pbdb$max_ma<=506.5 & pbdb$min_ma<506.5,  ]
-data(keys)
+
+# get lithology info 
+data(keys, package="divDyn")
 miao$lith<-divDyn::categorize(miao$lithology1,keys$lith)
 
+# reconstruct paleocoords
 cambColl <- unique(miao[, c("collection_no", "lng","lat", "lith")])
-pcoords <- reconstruct(cambColl[, c("lng", "lat")], age=age, model=model)
+pcoords <- rgplates::reconstruct(cambColl[, c("lng", "lat")], age=age, model=model)
 colnames(pcoords) <- c("plong", "plat")
 cambColl <- cbind(cambColl, pcoords )
 
-
-
-
-
+# illustrate paleoecology
 png("export/dependency/paleoecology.png", width=3000, height=1500, pointsize=24, bg=NA)
 	par(mai=rep(0.1,4))
-	PlotOccs(x=cambColl, map=polyer, crs="ESRI:4326", plng="plong", plat="plat", 
+	PlotOccs(x=cambColl, map=polyer, crs=proj, plng="plong", plat="plat", 
 		points.cex=4, col="white", symbol=NULL,
 		symbol.col=NULL, map.bgdamp=FALSE, coloredsub=TRUE)
 dev.off()
@@ -270,15 +317,12 @@ dev.off()
 # a bunch of random colors
 load("data/allHex.RData")
 
-# plotting the script is here
-source("code/methods/plots.R")
-
+# join collections together with occurrences
 miaoCoords <- merge(miao, cambColl[, c("collection_no", "plong", "plat")], by="collection_no")
 
-library(icosa)
 # very crude example of regionalization
-hex <- hexagrid(deg=5, sf=TRUE)
-miaoCoords$cell<- locate(hex,miaoCoords[, c("plong", "plat")] )
+hex <- icosa::hexagrid(deg=5, sf=TRUE)
+miaoCoords$cell<- icosa::locate(hex,miaoCoords[, c("plong", "plat")] )
 
 # contingency
 cont <- table(miaoCoords$cell, miaoCoords$genus)
@@ -293,9 +337,9 @@ distmat <- vegan::vegdist(cont, method="jaccard")
 cluster <- hclust(distmat, "ward.D2")
 
 # plot this
-plot(cluster)
 h <- 1.1
-abline(h=h, col="red")
+## plot(cluster)
+## abline(h=h, col="red")
 
 # cutting the dendrogram-> membership vector
 mem <- cutree(cluster, h=h)
@@ -312,44 +356,53 @@ dev.off()
 # Evaporites
 boucot <- read.csv("data/AJB Paleozoic v9.csv")
 
-# thej
+# Select the appropriate records 
 lower <- boucot[boucot$Period=="Cambrian" & boucot$LMU=="Lower", ]
-lower <- cbind(lower,reconstruct(lower[, c("LONG", "LAT")], age=age, model=mod))
+
+# and reconstruct paleogeography
+lower <- cbind(lower,rgplates::reconstruct(lower[, c("LONG", "LAT")], age=age, model=mod))
 
 lower <- lower[!is.na(lower$paleolong) & !is.na(lower$paleolat), ]
-lowerSF <- st_as_sf(lower, coords=c("paleolong", "paleolat"), crs="WGS84")
-lowerProj <- st_transform(lowerSF, proj)
-
+lowerSF <- sf::st_as_sf(lower, coords=c("paleolong", "paleolat"), crs="WGS84")
+lowerProj <- sf::st_transform(lowerSF, proj)
 
 # Preciptation - evaporation
-evap <- rotate(rast("data/500_texPwo/teXPw_precipevap_ann_fsy.nc"))
-crs(evap) <- "WGS84"
-reEvap <- resample(evap, rast(res=0.5))
-reEvapProj <- project(reEvap, proj)
+# same source as the circulation
+evap <- terra::rotate(terra::rast("data/500_texPwo/teXPw_precipevap_ann_fsy.nc"))
+terra::crs(evap) <- "WGS84"
+
+# resample and project
+reEvap <- terra::resample(evap, terra::rast(res=0.5))
+reEvapProj <- terra::project(reEvap, proj)
 
 # make a land mask for this
 landMask <- magnitude
-values(landMask) <- NA
-values(landMask)[is.na(values(magnitude))] <- TRUE
-plot(landMask)
-# get rid of the polar artifact
-corr <- mask(landMask, st_sf(mapedge(ymin=70)))
-values(landMask)[!is.na(values(corr))] <- NA
+terra::values(landMask) <- NA
+terra::values(landMask)[is.na(terra::values(magnitude))] <- TRUE
 
-reLandMask <- resample(landMask, rast(res=0.5))
-reLandMaskProj <- project(reLandMask, proj)
+# example check
+plot(landMask)
+
+# get rid of the polar artifact
+corr <- terra::mask(landMask, sf::st_sf(mapedge(ymin=70)))
+terra::values(landMask)[!is.na(terra::values(corr))] <- NA
+
+# resample and project...
+reLandMask <- terra::resample(landMask, terra::rast(res=0.5))
+reLandMaskProj <- terra::project(reLandMask, proj)
 plot(reLandMaskProj)
 
+# wha facies to plot?
 toPlot <- c("Evaporites", "Gypsum", "Halite", "Anhydrites")
 
 png("export/dependency/evaporites.png", width=3000, height=1500, pointsize=24, bg=NA)
 	par(mai=rep(0.1,4))
-	plot(reEvapProj, axes=FALSE, legend=FALSE, col=inferno(256))
+	plot(reEvapProj, axes=FALSE, legend=FALSE, col=viridisLite::inferno(256))
 	plot(polyProj$geometry, border="#ffffff44",lwd=3,  add=TRUE)
 	plot(reLandMaskProj, axes=FALSE, add=TRUE, col="#ffffff66")
 	for(i in 1:length(toPlot)){	
 		plotThis<- lowerProj[lowerProj$Lithology==toPlot[i], ]
-		plot(plotThis$geometry, pch=(21:24)[i], col="black", bg=turbo(4)[i], add=TRUE, lwd=2, cex=5)
+		plot(plotThis$geometry, pch=(21:24)[i], col="black", bg=viridisLite::turbo(4)[i], add=TRUE, lwd=2, cex=5)
 	}
 	plot(meProj, col=NA, lwd=2, border="gray90", add=TRUE)
 	sphereshade(left="#000000", right="#000000", crs=proj, left.alpha=0.15, right.alpha=0)
@@ -357,62 +410,55 @@ dev.off()
 
 ################################################################################
 # Miaolingian clastics
-library(icosa)
-library(rampage)
-library(terra)
-
-
 
 # estimate the density based on these
+# carbonates
 carb <- cambColl[cambColl$lith=="carbonate", c("plong", "plat")]
 colnames(carb) <- c("long", "lat")
+# siliciclastics
 sil <- cambColl[cambColl$lith=="siliciclastic", c("plong", "plat")]
 colnames(sil) <- c("long", "lat")
 
-# a grid for the density estimation
-gr <- hexagrid(deg=15)
+# a grid for the smoothing/density estimation 
+gr <- icosa::hexagrid(deg=15)
+
+# function to apply in every cell
 CellCount <- function(x) table(x$cell)
-carbO <- grapply(x=carb, out=rast(),y=gr,  iter=500, FUN=CellCount, miss=0.05)
-silO <- grapply(x=sil, out=rast(),y=gr,  iter=500, FUN=CellCount, miss=0.05)
+carbO <- icosa::grapply(x=carb, out=terra::rast(),y=gr,  iter=500, FUN=CellCount, miss=0.05)
+silO <- icosa::grapply(x=sil, out=terra::rast(),y=gr,  iter=500, FUN=CellCount, miss=0.05)
 
+# to be used as a mask in case for land
+polyProper <- poly[sf::st_geometry_type(poly$geometry)=="MULTIPOLYGON",]
 
-# to be used as a mask in case
-polyProper <- poly[st_geometry_type(poly$geometry)=="MULTIPOLYGON",]
-
-
+# two different color ramps
 # create color ramps
 redDF <-data.frame(
-	color=colorRampPalette(c("#ffffff", gradinv(7)[6]))(7),
+	color=colorRampPalette(c("#ffffff", rampage::gradinv(7)[6]))(7),
 	z=c(-8,-2, -0.5, 0, +0.5,+2, 8)
 )
-reder<- expand(redDF, 256)
+reder<- rampage::expand(redDF, 256)
 
 blueDF <-data.frame(
-	color=colorRampPalette(c("#ffffff", gradinv(7)[2]))(7),
+	color=colorRampPalette(c("#ffffff", rampage::gradinv(7)[2]))(7),
 	z=c(-8,-2, -0.5, 0, +0.5,+2, 8)
 )
-bluer<- expand(blueDF, 256)
-
+bluer<- rampage::expand(blueDF, 256)
 
 # mask the two rasters with 
-polyCarbo<- mask(carbO, polyProper)
+polyCarbo<- terra::mask(carbO, polyProper)
 plot(log(polyCarbo), col=reder$col, breaks=reder$breaks, legend=FALSE)
 
-polySilo<- mask(silO, polyProper)
+polySilo<- terra::mask(silO, polyProper)
 plot(log(polySilo), col=bluer$col, breaks=bluer$breaks, legend=FALSE)
 
-
 # And plot them!
-
 png("export/dependency/carbonates.png", width=3000, height=1500, pointsize=24, bg=NA)
 PlotLithology(
 	x=cambColl[cambColl$lith=="carbonate", ],
 	ras=polyCarbo, log=TRUE, proj=proj,
 	plng="plong", plat="plat",
-	points.cex=5, col=gradinv(7)[7], coloramp=reder )
+	points.cex=5, col=rampage::gradinv(7)[7], coloramp=reder )
 dev.off()
-
-
 
 
 png("export/dependency/siliciclasitics.png", width=3000, height=1500, pointsize=24, bg=NA)
@@ -420,7 +466,7 @@ PlotLithology(
 	x=cambColl[cambColl$lith=="siliciclastic", ],
 	ras=polySilo, log=TRUE, proj=proj,
 	plng="plong", plat="plat",
-	points.cex=5, col=gradinv(7)[1], coloramp=bluer , pch=23)
+	points.cex=5, col=rampage::gradinv(7)[1], coloramp=bluer , pch=23)
 dev.off()
 
 
