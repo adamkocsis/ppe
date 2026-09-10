@@ -54,6 +54,8 @@ Components of the figure was plotted using GWS 1.0.0 as a back-end for 'rgplates
 
 ## Box-Figure 1
 
+Components of the figure was plotted using GWS 1.0.0 as a back-end for 'rgplates'.
+
 - code: `code/mismatch.R`
 - mock-up: `doc/figs/fig_mismatch.svg`
 - raster: `doc/figs/fig_mismatch.png`
